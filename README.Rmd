@@ -1,5 +1,7 @@
 <!-- badges: start -->
   [![Travis build status](https://travis-ci.com/PhilBertrand/CPFMove.svg?branch=master)](https://travis-ci.com/PhilBertrand/CPFMove)
+[![AppVeyor build status](https://ci.appveyor.com/api/projects/status/github/PhilBertrand/CPFMove?branch=master&svg=true)](https://ci.appveyor.com/project/PhilBertrand/CPFMove)
+[![Codecov test coverage](https://codecov.io/gh/PhilBertrand/CPFMove/branch/master/graph/badge.svg)](https://codecov.io/gh/PhilBertrand/CPFMove?branch=master)
 <!-- badges: end -->
 
 ---
