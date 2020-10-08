@@ -268,6 +268,23 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
       ## Getting rid of colony points; perhaps YES or NO in the function()
       bird <- subset(bird, bird$tripID > 0)
 
+      ## Loop estimating the number of points per trip
+      p.list <- list()
+
+      for (o in 1:length(unique(bird$tripID))) {
+
+        test <- subset(bird, bird$tripID == unique(bird$tripID)[o])
+
+        test$TripLength <- difftime(max(test$datetime),min(test$datetime),   #calculate time elapsed between start and end
+                                    units = ("min"))
+        p.list[[o]] <- test
+        rm(test)
+
+      }
+
+      bird <- do.call(rbind, p.list)
+      rm(p.list)
+
       ## Removing trip with the scenario
       alltrips <- subset(bird, bird$TripLength >= p)
       lall <- alltrips[!duplicated(alltrips$birdTrip),]
@@ -341,7 +358,7 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
 
   g <- suppressWarnings(grid.arrange(p2, p3, ncol=2,left = "Number of trips per individual", bottom = "Scenario (Minutes)"))
 
-  rlist <- suppressWarnings(list("detSens" = d[, c(4, 13, 15)], "detSORC" = df[, c(1:3)], fig = g))
+  rlist <- suppressWarnings(list("detSens" = d[, c(4, 12, 14)], "detSORC" = df[, c(1:3)], fig = g))
 
   return(rlist)
 

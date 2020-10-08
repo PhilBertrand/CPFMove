@@ -63,7 +63,10 @@
 #' ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
 #' BuffColony = 0.5, MinTripDur = 60, Complete = T, FixInt = 2,
 #' Interpolate = T, filtNA = 1, metINFO = c("ring", "year", "colony"), splt = F)
-#'
+#' @references
+#' Freitas, C., Lydersen, C., Ims, R.A., Fedak, M.A. and Kovacs, K.M. (2008) A simple new algorithm to filter marine mammal Argos locations Marine Mammal Science 24:315-325.
+#' McConnell, B.J., Chambers, C. and Fedak, M.A. (1992) Foraging ecology of southern elephant seals in relation to the bathymetry and productivity of the Southern Ocean. Antarctic Science 4:393-398.
+
 #' @export
 
 filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = NULL, drecap = NULL,
