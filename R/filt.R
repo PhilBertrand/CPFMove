@@ -15,7 +15,7 @@
 #' @param ring a character string corresponding to the metadata's column name containing the individual ring number
 #' @param tdep a character string corresponding to the metadata's column name containing the time of departure
 #' @param trecap a character string corresponding to the metadata's column name containing the time of retrieval
-#' @param speedTresh numeric treshold used as speed cutoff for speed filtering (m/s)
+#' @param speedTresh numeric treshold used as speed cutoff for speed filtering (km/h)
 #' @param FIX a character string corresponding to the metadata's column name containing the numeric interval separating two
 #' locations in the GPS track
 #' @param FixInt numeric interval that should separate two locations in GPS tracks for interpolation (minutes; e.g. 2, 10)
@@ -44,6 +44,7 @@
 #' - birdTrip: unique bird trip identifyer
 #' - TripLength: Total time length of the trip (min)
 #' - TripDist: Cumulative distance flew by the bird for the specific trip
+#' - Speed: Speed between t-1 and t in m/s
 #' - nPoints: number of points composing the trip
 #' - maxDist: maximum distance that the bird went in its trip, relative to the colony
 #' - propNA: proportion of NAs in the trip. Convenient for filtering for reliability of the statistics
@@ -186,20 +187,20 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = N
   bird <- bird[bird$datetime >= start & bird$datetime <= end, ]
 
   ## overwrite device speed data, in m/s
-  trip.matrix <- data.matrix(bird[,c("Longitude","Latitude")], rownames.force = NA) #creates two column matrix of lat and long for trip trackDistance function
-  between.point.distances <- trip::trackDistance(trip.matrix, longlat = TRUE) #calculate distance in km between each GPS point, into vector
-  bird$PointDist <- c(0, between.point.distances) #dist in km
-  bird$TimeElapsed <- 0 #create empty column to fill with for loop
-
-  for (k in 2:NROW(bird)){
-      bird$TimeElapsed[k] <- difftime(bird$datetime[k], bird$datetime[k-1], units = "secs") #time diff in secs
-    }
-
-  bird$Speed <- (bird$PointDist * 1000)/bird$TimeElapsed ## m/s
-
-  if (!is.null(speedTresh)) {
-      bird <- subset(bird, bird$Speed < speedTresh)
-    }
+  # trip.matrix <- data.matrix(bird[,c("Longitude","Latitude")], rownames.force = NA) #creates two column matrix of lat and long for trip trackDistance function
+  # between.point.distances <- trip::trackDistance(trip.matrix, longlat = TRUE) #calculate distance in km between each GPS point, into vector
+  # bird$PointDist <- c(0, between.point.distances) #dist in km
+  # bird$TimeElapsed <- 0 #create empty column to fill with for loop
+  #
+  # for (k in 2:NROW(bird)){
+  #     bird$TimeElapsed[k] <- difftime(bird$datetime[k], bird$datetime[k-1], units = "secs") #time diff in secs
+  #   }
+  #
+  # bird$Speed <- (bird$PointDist * 1000)/bird$TimeElapsed ## m/s
+  #
+  # if (!is.null(speedTresh)) {
+  #     bird <- subset(bird, bird$Speed < speedTresh)
+  #   }
 
   ## Extracting GPS interval, determined from the metadata
   Sres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[i]))])*60
@@ -209,6 +210,11 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = N
 
     refda <- min(bird$datetime)
     Nbird <- adehabitatLT::as.ltraj(xy = data.frame(bird$Longitude, bird$Latitude), date = as.POSIXct(bird$datetime), id = bird$trackID)
+    Nbird[[1]]$sf <- trip::sda(x=trip::as.trip(Nbird), smax= speedTresh)
+    Nbird <- adehabitatLT::ld(Nbird)
+    Nbird <- subset(Nbird, Nbird$sf == TRUE)
+    Nbird <- adehabitatLT::as.ltraj(xy = data.frame(Nbird$x, Nbird$y), date = as.POSIXct(Nbird$date), id = Nbird$id)
+
     wost_NA <- adehabitatLT::setNA(Nbird,refda,Mres,units="min")
     wost_demo <- adehabitatLT::sett0(wost_NA,refda,Mres,units="min")
     Nbird <- adehabitatLT::redisltraj(na.omit(wost_demo), u = Sres, type = "time")
@@ -236,6 +242,13 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = N
   bird$ColonyDist <- sp::spDistsN1(trip.matrix, CLL, longlat = TRUE) #calculate distances between GPS points and initial GPS point in km
   between.point.distances <- trip::trackDistance(trip.matrix, longlat = TRUE) #calculate distance in km between each GPS point, into vector
   bird$PointDist <- c(0, between.point.distances) #dist in km
+  bird$TimeElapsed <- 0 #create empty column to fill with for loop
+
+  for (k in 2:NROW(bird)){
+    bird$TimeElapsed[k] <- difftime(bird$datetime[k], bird$datetime[k-1], units = "secs") #time diff in secs
+  }
+
+  bird$Speed <- (bird$PointDist * 1000)/bird$TimeElapsed ## m/s
 
   if(is.null(BuffColony)) {
     bird$ColonyorTrip <- c("trip")
