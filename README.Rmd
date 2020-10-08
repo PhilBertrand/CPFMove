@@ -1,3 +1,7 @@
+---
+output: html_document
+---
+
 <!-- badges: start -->
   [![Travis build status](https://travis-ci.com/PhilBertrand/CPFMove.svg?branch=master)](https://travis-ci.com/PhilBertrand/CPFMove)
 [![AppVeyor build status](https://ci.appveyor.com/api/projects/status/github/PhilBertrand/CPFMove?branch=master&svg=true)](https://ci.appveyor.com/project/PhilBertrand/CPFMove)
@@ -5,8 +9,8 @@
 <!-- badges: end -->
 
 ---
-title: "Tutorial Movement"
-author: "Philip Bertrand, PhD candidate. SEAPOP & Norwegian Polar Institute"
+title: "CPFMove Introduction"
+author: "Philip Bertrand, PhD candidate - SEAPOP & Norwegian Polar Institute (NPI)"
 date: "08/10/2020"
 output: html_document
 ---
@@ -15,12 +19,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, warnings = FALSE, message = FALSE)
 ```
 
-This document is intended to provide basic information on how 
-to use relevant functions for raw movement data. These have 5 objectives;
+This document is intended to provide basic information on how to use the CPFMove functions. This package is designed to work with raw GPS data and especially for species showing a central-place foraging behavior (CPF i.e. tendancy to an animal to leave and return to a fixed based between foraging trips, rather than being in constant roaming). The package has three main objectives:
 
-  1) Delineating tracks from raw GPS data
-  2) Diagnostic tools for parameter selection 
-  3) Plotting the delineated tracks
+Falilitating the delineation of trip from raw GPS data for CPF species
+Offering basic tools for filtering/enhancing the quality of the trips
+Offering basic diagnostic tools for parameter selection
+Offering a basic plotting function to visually assessed the reliability of delineated tracks
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 pathM <- c("C:/Users/philip/OneDrive/NP_Kontrakt/R/DummyMeta/")
@@ -30,17 +34,17 @@ metafile <- read.csv(paste(pathM, metname, sep=""), sep = ",", header=T, na.stri
 
 ## Data Format
 
-The algortihm rely on an local metadata which contain the information used for trip delineation. The algorithm is flexible in regards of column's names. However, the following relevant information is mandatory;
+The algortihm rely on a local metadata file that contains the information necessary to accurately delineating trips. Nine arguments are necessary for delineating trips (see below). Although this information is mandatory, the algorithm is flexible in regards of column’s names and can be specified accordingly in the main function
 
- * **Clongitude**: The colony longitude (WGS84)
- * **Clatitude**: The colony latitude (WGS84)
- * **MetalRing**: The unique identifier of the captured bird
- * **GPSType**: The type of GPS used
- * **FIX**: The programmed sampling interval of the GPS
- * **Deployment**: The standardized deployment date
- * **Recapture**: The standardized recapture date
- * **UTC_Deployment**: Standardized time of the deployment (UTC recommended)
- * **UTC_Retrieval**: Standardized time of the recapture (UTC recommended)
+Clongitude: The colony longitude (WGS84)
+Clatitude: The colony latitude (WGS84)
+MetalRing: The unique identifier of the captured bird
+GPSType: The type of GPS used
+FIX: The programmed sampling interval of the GPS
+Deployment: The standardized deployment date
+Recapture: The standardized recapture date
+UTC_Deployment: Standardized time of the deployment (UTC recommended)
+UTC_Retrieval: Standardized time of the recapture (UTC recommended)
 
 ```{r cars, message=FALSE, warning=FALSE}
 head(metafile)
@@ -48,367 +52,48 @@ head(metafile)
 
 ## Trip Delineation
 
-The main purpose of this package is to delineate raw GPS data into different foraging trips. Trip delineation is however a relatively flexible procedure. Parameters selection is highly dependable of the species under investigation and its relative behavior. The function has in total 5 filtering options, which will impact to a varying extent the final outputs:
+Trip delineation is performed via the filt() function. The function has many arguments which among those, 5 has filtering effect (see ?filt() for the corresponding details);
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-
-filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = NULL, drecap = NULL,
-                 colony = NULL, year = NULL, ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL,
-                 speedTresh = NULL, FIX = NULL, FixInt = NULL, BuffColony = NULL, MinTripDur = NULL,
-                 Complete = FALSE, Interpolate = FALSE, filtNA = 1, metINFO = c(NULL), splt = TRUE) {
-
-  if (class(metname) != "character")
-    stop("metname should be a character")
-  if (class(gpst) != "character")
-    stop("gpst should be a character")
-  if (class(ddep) != "character")
-    stop("ddep should be a character")
-  if (class(drecap) != "character")
-    stop("drecap should be a character")
-  if (class(colony) != "character")
-    stop("colony should be a character")
-  if (class(year) != "character")
-    stop("year should be a character")
-  if (class(ring) != "character")
-    stop("ring should be a character")
-  if (class(tdep) != "character")
-    stop("tdep should be a character")
-  if (class(trecap) != "character")
-    stop("trecap should be a character")
-  if (class(timezone) != "character")
-    stop("the timezone should be a character")
-  if (class(FIX) != "character")
-    stop("the FIX should be a character")
-  if (!is.null(speedTresh) & class(speedTresh) != "numeric")
-    stop("the speed treshold should be numeric")
-  if (!is.null(FixInt) & class(FixInt) != "numeric")
-    stop("the time interval between successive fixes should be numeric")
-  if (!is.null(BuffColony) & class(BuffColony) != "numeric")
-    stop("the buffer size should be numeric")
-  if (!is.null(MinTripDur) & class(MinTripDur) != "numeric")
-    stop("the minimum time duration (min) that a trip should have should be numeric")
-  if (Complete != TRUE & Complete != FALSE)
-    stop("Logical: Completness function should be approved (TRUE) or delcine (FALSE)")
-  if (!is.null(FixInt) & class(FixInt) != "numeric")
-    stop("the time interval between successive fixes should be numeric")
-  if (class(filtNA) != "numeric" | c(filtNA < 0 | filtNA > 1))
-    stop("filtering NAs induced by interpolation needs a proportion as treshold; 0-1")
-  if (!is.null(metINFO) & class(metINFO) != "character")
-    stop("the metINFO should be a vector of character strings")
-
-  ## Importing file's names
-  Filext <- ".csv"
-  file.name <- list.files(pathF)[grep(Filext,list.files(pathF))]; rm(Filext)
-  files   <- length(file.name)
-
-  ## Importing metadata; need to remove path to pathM, no permission is denied
-  metafile <- read.csv(paste(pathM, metname, sep=""), sep = ",", header=T, na.strings=c("","NA"))
-
-  ## define from when the tracks should begin and end: when logger was deployed/retrieved
-  metafile$start <- as.POSIXct(strptime(paste (as.character(metafile[[ddep]]),
-                     as.character(metafile[[tdep]])),"%Y-%m-%d %H:%M", tz=timezone), timezone)
-  metafile$end   <- as.POSIXct(strptime(paste (as.character(metafile[[drecap]]),
-                     as.character(metafile[[trecap]])),"%Y-%m-%d %H:%M", tz=timezone), timezone)
-
-  ## create a track ID synonymous with how the files are named:
-  metafile$ID <- paste(metafile[[year]], "_", metafile[[colony]], "_", metafile[[ring]], "_", format(metafile$end,"%Y-%m-%d"),sep="")
-
-  Date.diff <-  metafile$end - metafile$start; if( length(metafile$ID[which(Date.diff <= 0)]) != 0 )
-      stop('Date of retrieval should be later than date of deployment')
-
-  allbirds.list <- list()
-
-    for (i in 1:files) { ## Loop delineating trips on each file i.e. GPS deployement
-
-  ## Partitionning between two types of GPS-based file
-  ## Need to have a column specifying GPS type in the metadata file
-  GPSType <- metafile[, gpst][which(metafile$ID == gsub(".csv", "", file.name[i]))]
-  if(identical(GPSType, character(0))) {stop("You need to have a valid GPS type. Referring to gpst")}
-
-  ## This line remove the 6 first unecassary lines in the CHIP-PATCH GPS Type
-  ## The 1GEN is read as it is
-  if(GPSType != "Catlog" & GPSType != "IGotU" & GPSType != "Pathtrack" & GPSType != "Ecotone") {stop("the GPS type should be either Catlog, IGotU, Ecotone or Pathtrack")}
-  if(GPSType == "Catlog") { bird <- read.csv(paste(pathF, file.name[i], sep=""), sep = ",", skip = 6) }
-  if(GPSType == "IGotU"){ bird <- read.csv(paste(pathF, file.name[i], sep=""), sep = ",") }
-  if(GPSType == "Ecotone"){ bird <- read.csv(paste(pathF, file.name[i], sep=""), sep = ",")
-    bird$Date <- as.Date(with(bird, paste(Year, Month, Day, sep="/")), "%Y/%m/%d")
-    bird$Time <- sprintf("%s:%s:%s", bird$Hour, bird$Minute, bird$Second)
-    bird <- subset(bird, !is.na(bird$Latitude) & !is.na(bird$Longitude))}
-  if(GPSType == "Pathtrack"){
-    bird <- read.csv(paste(pathF, file.name[i], sep=""), sep = ",", skip =5)
-    colnames(bird) <- c("Day", "Month", "Year", "Hour", "Minute", "Second", "SecondDay",
-                        "NumberSats", "Latitude", "Longitude", "Altitude", "ClockOff",
-                        "Accuracy", "BatLevel")
-    bird$Year <- bird$Year + 2000
-    bird$Date <- as.Date(with(bird, paste(Year, Month, Day, sep="/")), "%Y/%m/%d")
-    bird$Time <- sprintf("%s:%s:%s", bird$Hour, bird$Minute, bird$Second)
-    bird <- subset(bird, bird$Latitude > 0 & bird$Longitude > 0)}
-
-  ## This assume to have a meaningful file.name, will be used thereafter as trackID
-  bird$trackID <- unlist(strsplit(file.name[i], "[.]"))[1]
-
-  ## extract start and end times for track, needs to be linked to a metadata file
-  ## should implement an object, for specifying start, end & timezone
-  start <- metafile$start[which(metafile$ID == gsub(".csv", "", file.name[i]))]
-  end <- metafile$end[which(metafile$ID == gsub(".csv", "", file.name[i]))]
-  int <- lubridate::interval(start, end, tzone = timezone)
-
-  ## Extract colony corrdinates and building of a data.frame
-  ## Will be used later in the script for colony-location distance
-  CLong <- metafile$Clongitude[which(metafile$ID == gsub(".csv", "", file.name[i]))]
-  CLat <- metafile$Clatitude[which(metafile$ID == gsub(".csv", "", file.name[i]))]
-  CLL <- cbind(CLong, CLat)
-
-  ## make sure date in the right format - ymd; creating the time object, then ordering since
-  ## sometimes, data are not in chronological order
-  mdy <- lubridate::mdy(bird$Date, quiet = TRUE)
-  ymd <- lubridate::ymd(bird$Date, quiet = TRUE)
-  mdy[is.na(mdy)] <- ymd[!is.na(ymd)] # give the working one precedence
-  bird$Date <- format(mdy, "%Y/%m/%d")
-  bird$Time <- chron::chron(times=bird$Time)
-  bird$datetime <- strptime(paste(gsub("/", "-", bird$Date), bird$Time), format = "%Y-%m-%d %H:%M:%S", tz = "GMT")
-  bird <- bird[order(bird$datetime , decreasing = FALSE ),] ## assuring the chronological order of fixes
-
-  ## now subset to points within this time start/end window
-  bird <- bird[bird$datetime >= start & bird$datetime <= end, ]
-
-  ## overwrite device speed data, in m/s
-  trip.matrix <- data.matrix(bird[,c("Longitude","Latitude")], rownames.force = NA) #creates two column matrix of lat and long for trip trackDistance function
-  between.point.distances <- trip::trackDistance(trip.matrix, longlat = TRUE) #calculate distance in km between each GPS point, into vector
-  bird$PointDist <- c(0, between.point.distances) #dist in km
-  bird$TimeElapsed <- 0 #create empty column to fill with for loop
-
-  for (k in 2:NROW(bird)){
-      bird$TimeElapsed[k] <- difftime(bird$datetime[k], bird$datetime[k-1], units = "secs") #time diff in secs
-    }
-
-  bird$Speed <- (bird$PointDist * 1000)/bird$TimeElapsed ## m/s
-
-  if (!is.null(speedTresh)) {
-      bird <- subset(bird, bird$Speed < speedTresh)
-    }
-
-  ## Extracting GPS interval, determined from the metadata
-  Sres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[i]))])*60
-  Mres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[i]))])
-
-  if(Interpolate == TRUE) {
-
-    refda <- min(bird$datetime)
-    Nbird <- adehabitatLT::as.ltraj(xy = data.frame(bird$Longitude, bird$Latitude), date = as.POSIXct(bird$datetime), id = bird$trackID)
-    wost_NA <- adehabitatLT::setNA(Nbird,refda,Mres,units="min")
-    wost_demo <- adehabitatLT::sett0(wost_NA,refda,Mres,units="min")
-    Nbird <- adehabitatLT::redisltraj(na.omit(wost_demo), u = Sres, type = "time")
-    Nbird[[1]]$nbNA <- ifelse(Nbird[[1]]$x %in% wost_demo[[1]]$x, 0, 1)
-
-    tmpN <- adehabitatLT::ld(Nbird)
-    Nbird <- adehabitatLT::as.ltraj(xy = data.frame(tmpN$x, tmpN$y), date = as.POSIXct(tmpN$date), id = tmpN$id, infolocs = tmpN[, c(11, 12)])
-
-    if(!is.null(FixInt)) {
-     if(nrow(Nbird[[1]]) > 1){ ### Standardized as matter of time treshold
-      if(Mres != FixInt) {
-       if( FixInt < max(metafile$FIX, na.rm = TRUE)  ) stop("your selected treshold for ", print(bird$trackID[1]), " is smaller than the greater interval in your sampled tracks - meaning that your are creating points")
-        Nbird <- adehabitatLT::subsample(Nbird, FixInt, units = c("min"))
-       }
-      }
-     }
-
-    Nbird <- adehabitatLT::ld(Nbird)
-    bird <- data.frame(datetime = Nbird$date, Latitude = Nbird$y, Longitude = Nbird$x, trackID = Nbird$id, nbNA = Nbird$nbNA)
-
-    } else { bird <- bird[, c("datetime", "Latitude", "Longitude", "trackID")]; bird$nbNA <- 0 }
-
-  ## get distance flown from the colony
-  trip.matrix <- data.matrix(bird[,c("Longitude","Latitude")], rownames.force = NA) #creates two column matrix of lat and long for trip trackDistance function
-  bird$ColonyDist <- sp::spDistsN1(trip.matrix, CLL, longlat = TRUE) #calculate distances between GPS points and initial GPS point in km
-  between.point.distances <- trip::trackDistance(trip.matrix, longlat = TRUE) #calculate distance in km between each GPS point, into vector
-  bird$PointDist <- c(0, between.point.distances) #dist in km
-
-  if(is.null(BuffColony)) {
-    bird$ColonyorTrip <- c("trip")
-    bird$tripID <- 1
-    } else {
-
-  ## Setting buffer treshold
-  bird$ColonyorTrip <- ifelse(bird$ColonyDist > BuffColony, "trip","colony") #in km
-
-  ## set all colony points to 0
-  bird$ColonyDist[which(bird$ColonyorTrip == "colony")] <- 0
-
-  ## add trip number
-  tripID <- 1
-  nRows <- length(bird$ColonyorTrip) - 1
-  bird$tripID <- 0
-
-  ### this big for loop numbers all trips, including the one colony point before
-  ### and after the last trip point
-  if(bird$ColonyorTrip[1] == "colony" && bird$ColonyorTrip[2] == "trip") {bird$tripID[1] <- tripID}  else {bird$tripID[1] <- 0}
-  if(bird$ColonyorTrip[1] == "trip") {bird$tripID[1] <- tripID}
-
-  for (j in 2:nRows) {
-    if(bird$ColonyorTrip[j] == "colony" && bird$ColonyorTrip[j] != bird$ColonyorTrip[j+1] &&
-       bird$ColonyorTrip[j-1] != bird$ColonyorTrip[j+1]) {
-      tripID <- tripID + 1
-    } else {bird$tripID[j] <- tripID}
-    if(bird$ColonyorTrip[j] == "trip" | bird$ColonyorTrip[j] != bird$ColonyorTrip[j-1]
-       | bird$ColonyorTrip[j] != bird$ColonyorTrip[j+1]) {
-      bird$tripID[j] <- tripID
-    } else {
-      bird$tripID[j] <- 0}
-    if(bird$ColonyorTrip[nRows+1] == "trip") {
-      bird$tripID[nRows+1] <- tripID ## set the last row correctly
-     }
-    }
-   }
-
-  ## Creating unique ID variable
-  bird$birdTrip <- paste(bird$trackID, bird$tripID, sep = "_")
-
-  ## Getting rid of colony points; perhaps YES or NO in the function()
-  bird <- subset(bird, bird$tripID > 0)
-
-  ## Loop estimating the number of points per trip
-  p.list <- list()
-
-  for (o in 1:length(unique(bird$tripID))) {
-
-    test <- subset(bird, bird$tripID == unique(bird$tripID)[o])
-
-    test$TripLength <- difftime(max(test$datetime),min(test$datetime),   #calculate time elapsed between start and end
-                                units = ("min"))
-
-    trip.matrix <- data.matrix(test[,c("Longitude","Latitude")], rownames.force = NA) #creates two column matrix of lat and long for trip trackDistance function
-    distbp <- trip::trackDistance(trip.matrix, longlat = TRUE) #calculates distance between each GPS point, into vector
-    TDist <- sum(distbp) ## Total distance travelled per trip (m)
-    test$TripDist <- TDist
-
-    tripDurs <- as.data.frame(table(test$birdTrip))
-    test$nPoints <- tripDurs$Freq[match(test$birdTrip, tripDurs$Var1)] ## Nb of points per trips
-    test$maxDist <- max(test$ColonyDist, na.rm = TRUE) ## Calculating maximum distance per trip
-
-    test$propNA <- sum(test$nbNA)/length(test$nbNA) ## Proportion of interpolated NAs for each trip
-
-    ## Calculation of the proportion of points over land
-    ## Would require a appropriate shapefile for the calculation
-    #pts <- SpatialPointsDataFrame(test[,c("Longitude", "Latitude")], test,proj4string=crdref)
-    #pts$Land <- !is.na(over(pts, as(s, "SpatialPolygons")))
-    #pts$Prop.Land <- mean(pts$Land)
-    #test <- as.data.frame(pts)
-
-    p.list[[o]] <- test
-    rm(test)
-
-  }
-
-  alltrips <- do.call(rbind, p.list)
-  rm(p.list)
-
-  notime <- alltrips[, c("birdTrip", "ColonyDist","ColonyorTrip")]
-
-  trip.Bincomplete <- aggregate(notime, by=list(notime$birdTrip), FUN = function(x) { head(x,1) }) ## gets the first point for each trip
-  trip.Eincomplete <- aggregate(notime, by=list(notime$birdTrip), FUN = function(x) { tail(x,1) }) ## gets the last point for each trip
-
-  alltrips$BegPoint <- trip.Bincomplete[, 4][match(alltrips$birdTrip, trip.Bincomplete$birdTrip)]
-  alltrips$EndPoint <- trip.Eincomplete[, 4][match(alltrips$birdTrip, trip.Eincomplete$birdTrip)]
-
-      if ( Complete == TRUE ) { # get rid of incomplete trips
-  alltrips <- subset(alltrips, alltrips$BegPoint == "colony")
-  alltrips <- subset(alltrips, alltrips$EndPoint == "colony")
-    }
-
-      if (!is.null(MinTripDur)) {
-  alltrips <- subset(alltrips, alltrips$TripLength >= MinTripDur)
-    }
-
-      if (!is.null(filtNA)) {
-  alltrips <- subset(alltrips, alltrips$propNA <= filtNA)
-    }
-
-  if (!is.null(metINFO)) {
-  for (k in 1:length(metINFO)) {  ## this loop insert specifric colum from the metadata, convenient for further analyses
-    mi <- metINFO[k]
-    alltrips[, mi] <- tryCatch({metafile[, mi][match(alltrips$trackID, metafile$ID)]},
-             error = function(x) {stop("column's name(s) is/are not recognised from the specified metadata file")})
-      }}
-
-      if (nrow(alltrips) > 1){
-  alltrips$ColLong <- CLong
-  alltrips$ColLat <- CLat
-      }
-
-  allbirds.list[[i]] <- alltrips
-  rm(alltrips)
-  allbirds <- do.call(rbind, allbirds.list)
-  cat("GPS file = ", i, "\n")
-
-    }
-
-  if(is.null(BuffColony)) {
-    warning("No buffer has been drawn around the colony, meaning that trips have not been delineated. Resuming in one single track for each bird", call. = F)
-      }
-
-  if(splt == TRUE) { allbirds <- split(allbirds, allbirds$birdTrip)}
-
-  return(allbirds)
-
-}
-
-```
-
-  1) Speed filtering is available (see **speedTresh**) and will remove locations associated to a upper speed level. The function use the function developped by Freitas et al. 2008 from the package "argosfilter". This function is itself based on the approach suggested by McConnell et al. 2002, except in case where the relevant point is wihtin a distance of 5 km from the previous fix. See references in the *?filt()* documentation
-  2) Colony radius is the main parameter for delineation (see **BuffColony**). In other words, this distance (km) originating from the colony's centroid, will categorized all points either as "trip" or "colony". This category will thereafter be used for segementing each foraging trip, where the first and last points of the foraging trip, corresponding to the last point in the colony before departure and the first point at the colony at arrival 
-  3) Minimum trip length is a parameter to filterate very small trips, corresponding to bathing trip, resting at some distance of the colony or visiting neighbors. This parameter is in minutes (see **MinTripDur**).
-  4) One can filterate trip as function of the number of points generated after interpolation. In other words, many tracks have many missing points and a tracks composed from 90% interpolatde points might not have the same representativity than another one that have only 10%. This function let user to disciminate based on a certain treshold
-  5) Finally, on can also filterate as function of the completeness of the tracks. Depending of the question and data representation, one could decide to only use complete trips for his/her analyses 
-  
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
-
-pathF <- c("C:/Users/philip/OneDrive/NP_Kontrakt/R/Tracks-testing/")
-pathM <- c("C:/Users/philip/OneDrive/NP_Kontrakt/R/DummyMeta/")
-metname <- c("METADATA_dummy.csv")
-timezone <- c("GMT")
-
-```
-
-The basic usage looks like (see ?filt() for the corresponding details);
-
-```{r, echo= F, results = "hide", message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, eval=F}
 
 f <- filt(pathF, pathM, metname, timezone, speedTresh = 22.222, gpst = "GPSType",
-   ddep = "deployment", drecap = "recapture", colony = "colony", year = "year",
-   ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
-   BuffColony = 0.5, MinTripDur = 60, Complete = T, FixInt = 2,
-   Interpolate = T, filtNA = 1, metINFO = c("ring", "year", "colony"), splt = F)
+      ddep = "deployment", drecap = "recapture", colony = "colony", year = "year",
+      ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
+      BuffColony = 0.5, MinTripDur = 60, Complete = T, FixInt = 2,
+      Interpolate = T, filtNA = 1, metINFO = c("ring", "year", "colony"), splt = F)
 
 ```
 
-```{r, echo= T, results = "hide", message=FALSE, warning=FALSE}
+The main purpose of this package is to facilitate the delineation of foraging trips from raw GPS data.Trip delineation is however a relatively flexible procedure and rely essentially on how we define “spatially” the colony.
 
-filt(pathF, pathM, metname, timezone, speedTresh = 22.222, gpst = "GPSType",
-     ddep = "deployment", drecap = "recapture", colony = "colony", year = "year",
-     ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
-     BuffColony = 0.5, MinTripDur = 60, Complete = T, FixInt = 2,
-     Interpolate = T, filtNA = 1, metINFO = c("ring", "year", "colony"), splt = F)
+The colony radius is the main parameter for delineation (see BuffColony). In other words, this treshold (km) is used to build an area around the colony’s centroid. From that area, all locations falling inside will be categorized as “colony” locations and those falling outside as “trip” ones. This binary category will thereafter be used for segmenting each foraging trip, i.e. having the last point in the colony before departure and the first point at the colony at arrival
 
-```
+Investigating effect of filtering options
+The BuffColony options have an important effect on the resulting trip dataset. This package has two functions for investigating such effect. These functions are essentially bootstrap where variation within scenario are computed. These normally described a decaying function of the number of final trips along increment of the radius size of the colony and the minimal duration that a trip should have. The second rate of change is also computed, among means of the different bootstrapping scenario. User can thus decide of a certain treshold to show where the variation among scenario “stabilize”.
 
-Interpolation is executed by *adehabitatLT::redisltraj()*.If you want to add additional data to the final objects, these one needs to could be easily attached from the metadata, using the *metINFO = c("ring", "year", "colony")* object. The option **splt** let you split the final object into an array instead of a data frame. In case the **splt** is set to **TRUE**, the object can be unsplitted thereafter using **do.call(rbind, object)**
+Below an example of sensitivity of the response over a serie of radius scenario.In that example, the optimal radius has been chosen as XXX km. Using the second order rate of change (SORC), this scenario revealed to have an absolute variation of less than 5% of the maximum average value of the scenario tested (i.e. ca. 13.7, corresponding to a SORC of < 13.7*0.05)
 
-## Investigating effect of filtering options
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
 
-The *BuffColony* and *MinTripDur* options have an important effect on the resulting trip dataset. This package has two functions for investigating such effect. These functions are essentially bootstrap where variation within scenario are computed. These normally described a decaying function of the number of final trips along increment of the radius size of the colony and the minimal duration that a trip should have. The second rate of change is also computed, among means of the different bootstrapping scenario. User can thus decide of a certain treshold to show where the variation among scenario "stabilize".
-
-Below an example of sensitivity of the response over a serie of radius scenario.
-
-```{r pressure, echo=FALSE, fig.cap="A caption", out.width = '100%'}
-
-knitr::include_graphics("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/files/lomvi/data/sc_plot.pdf", auto_pdf = getOption("knitr.graphics.auto_pdf", T))
+knitr::include_graphics("sc_plot.png")
 
 ```
+Which parameters selection is highly dependable of the species under investigation and its relative behavior. The function has in total 5 filtering options, which will impact to a varying extent the final outputs:
+
+Speed filtering is available (see speedTresh) and will remove locations associated to a upper speed level. The function use the function developped by Freitas et al. 2008 from the package “argosfilter”. This function is itself based on the approach suggested by McConnell et al. 2002, except in case where the relevant point is wihtin a distance of 5 km from the previous fix. See references in the ?filt() documentation
+Minimum trip length is a parameter to filterate very small trips, corresponding to bathing trip, resting at some distance of the colony or visiting neighbors. This parameter is in minutes (see MinTripDur).
+One can filterate trip as function of the number of points generated after interpolation. In other words, many tracks have many missing points and a tracks composed from 90% interpolatde points might not have the same representativity than another one that have only 10%. This function let user to disciminate based on a certain treshold (see filtNA)
+
+Finally, on can also filterate as function of the completeness of the tracks (see Complete). Depending of the question and data representation, one could decide to only use complete trips for his/her analyses
+Interpolation is executed by adehabitatLT::redisltraj().If you want to add additional data to the final objects, these one needs to could be easily attached from the metadata, using the metINFO = c(“ring”, “year”, “colony”) object. The option splt let you split the final object into an array instead of a data frame. In case the splt is set to TRUE, the object can be unsplitted thereafter using do.call(rbind, object)
 
 ## Plotting the delineated trips
   
-The script has now produced one object containing the segmented trips. One way to visualize those trips is to pass them into the **plottingMAP()** function;
+The script has now produced one object containing the segmented trips. One way to visualize those trips is to pass them into the plottingMAP() function;
+
+Using object from CPFmove class, the function plots each trip with the colony (blue) distinctive of the trip’s locations (purple). The function use the basemap() from the ggOceanMaps package in its pipeline. If mulitple trips are given, the function will make
+
+The script codes now for plotting only the first bird from the splitted object (see splt object from the filt());
 
 ```{r, echo= F, results = "hide", message=FALSE, warning=FALSE}
 
@@ -472,20 +157,5 @@ plotMAP <- function(allbirds, pmap = FALSE, path = NULL, w = 12, h = 12,
 ```{r, echo=F, message=FALSE, warning=FALSE}
 
 path <- c("C:/Users/philip/Desktop/test")
-
-```
-
-The function plots each trip with the colony (blue) distinctive of the trip's locations (purple). The function also use the bathymetry data from the OceanPolt package, and has 4 objects;
-
-* **pmap**: binary. If TRUE, a map per individual is generated in R. Otherwise, the figures are only saved at the **path**
-* **path**: the directory where the figures will be saved
-* **ColLong**: Longitude of the colony
-* **ColLat**: Latitude of the colony
-
-The script codes now for plotting only the first bird from the splitted object;
-
-```{r, echo=T, message=FALSE, warning=FALSE}
-
-plotMAP(f[1], pmap = T, path, ColLong = f[1]$ColLong, ColLat = f[1]$ColLat)
 
 ```
