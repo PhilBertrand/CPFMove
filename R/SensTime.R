@@ -1,3 +1,4 @@
+#' Not run
 #' Sensitivity of minimum trip duration on trip delineation
 #'
 #' This function was developped to give basic visualization tools to facilitate the selection
