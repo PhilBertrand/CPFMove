@@ -308,7 +308,7 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = N
 
     trip.matrix <- data.matrix(test[,c("Longitude","Latitude")], rownames.force = NA) #creates two column matrix of lat and long for trip trackDistance function
     distbp <- trip::trackDistance(trip.matrix, longlat = TRUE) #calculates distance between each GPS point, into vector
-    TDist <- sum(distbp) ## Total distance travelled per trip (m)
+    TDist <- sum(distbp) ## Total distance travelled per trip (km)
     test$TripDist <- TDist
 
     tripDurs <- as.data.frame(table(test$birdTrip))
