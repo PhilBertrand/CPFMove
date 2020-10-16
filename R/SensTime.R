@@ -6,6 +6,7 @@
 #' @param pathF path leading to your tracks
 #' @param pathM path leading to your metadata file
 #' @param metname a character string corresponding to the metadata file's name
+#' @param nbn character. Vector of "names" matching your raw GPS files (i.e. which are linked by the pathF argument). See details for more details
 #' @param timezone time zone in which data are recorded
 #' @param iter the number of bootstrapping iterations (default = 50)
 #' @param param vector of time treshold to be tested. These correspond to the different scenarios to be tested. Time is in hours format
@@ -23,6 +24,7 @@
 #' @param Interpolate logical; if TRUE, tracks are interpolated
 #' @param BuffColony numeric value indicating the buffer radius length around the colony (km)
 #' @param FixInt numeric interval that should separate two locations in GPS tracks for interpolation (minutes; e.g. 2, 10)
+#' @param sorc numeric, proportion (0:1) treshold used for the second-order-rate of change
 #' @details Raw GPS data (located via *pathF*) should be as .csv format. This version only include 4 types of GPS format 1) Catlog, 2)
 #' IGotU, 3) PathTracks and 4) Ecotone. If your file doesn't have any specific format, the *gpst* could be specified as IGotU (one line header,
 #' and the raw data in the second lines. However, one should make sure that the *Latitude*, *Longitude*, *Date* and *Time* are specified.
@@ -41,23 +43,26 @@
 #' timezone <- c("GMT")
 #' param <- seq(0, 100, by = 10)
 #'
-#' st <- sensTime(pathF, pathM, metname, timezone, iter = 300, param = param, speedTresh = 90,
-#'        gpst = "GPSType", ddep = "deployment", drecap = "recapture", colony = "colony",
-#'        year = "year", ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
-#'        Clong = "Clongitude", Clat = "Clatitude", BuffColony = 0.15, FixInt = 2, Interpolate = T)
+#' st <- sensTime(pathF, pathM, metname, nbn = c("year", "colony", "ring", "recapture"),
+#'        timezone, iter = 300, param = param, speedTresh = 90, gpst = "GPSType", ddep = "deployment",
+#'        drecap = "recapture", colony = "colony", year = "year", ring = "ring", FIX = "FIX",
+#'        tdep = "utc_deployment", trecap = "utc_retrieval",
+#'        Clong = "Clongitude", Clat = "Clatitude", BuffColony = 0.15, FixInt = 2, Interpolate = T, sorc = 0.01)
 #' }
 #' @references
 #' - Freitas, C., Lydersen, C., Ims, R.A., Fedak, M.A. and Kovacs, K.M. (2008) A simple new algorithm to filter marine mammal Argos locations Marine Mammal Science 24:315-325.
 #' - McConnell, B.J., Chambers, C. and Fedak, M.A. (1992) Foraging ecology of southern elephant seals in relation to the bathymetry and productivity of the Southern Ocean. Antarctic Science 4:393-398.
 #' @export
 
-sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param = NULL,
-                    gpst = NULL, FIX = NULL, ddep = NULL, drecap = NULL, colony = NULL, year = NULL,
-                    ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL, Clongitude = NULL, Clatitude = NULL,
-                    speedTresh = NULL, BuffColony = NULL, FixInt = NULL, Interpolate = FALSE) {
+sensTime <- function(pathF = ..., pathM = ..., nbn = c("NULL"), iter = 50,
+                    metname = NULL, param = NULL, gpst = NULL, FIX = NULL, ddep = NULL, drecap = NULL, colony = NULL, year = NULL,
+                    ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL, Clong = NULL, Clat = NULL,
+                    speedTresh = NULL, BuffColony = NULL, FixInt = NULL, Interpolate = FALSE, sorc = 0.05) {
 
   if (class(metname) != "character")
     stop("metname should be a character")
+  if (class(nbn) != "character")
+    stop("nbn should be a (vector of) character")
   if (!is.vector(param))
     stop("param should be a vector")
   if (class(gpst) != "character")
@@ -80,6 +85,10 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
     stop("the timezone should be a character")
   if (class(FIX) != "character")
     stop("the FIX should be a character")
+  if (class(Clong) != "character")
+    stop("the Clong should be a character")
+  if (class(Clat) != "character")
+    stop("the Clat should be a character")
   if (!is.null(speedTresh) & class(speedTresh) != "numeric")
     stop("the speed treshold should be numeric")
   if (!is.null(FixInt) & class(FixInt) != "numeric")
@@ -88,6 +97,8 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
     stop("the buffer size should be numeric")
   if (!is.null(FixInt) & class(FixInt) != "numeric")
     stop("the time interval between successive fixes should be numeric")
+  if (class(sorc) != "numeric" | c(sorc < 0 | sorc > 1))
+    stop("sorc treshold needs a proportion as treshold; 0-1")
 
   pack <- c("chron", "adehabitatHR", "plyr", "trip", "lubridate", "gridExtra", "reshape2",
             "ggplot2", "Hmisc")
@@ -330,9 +341,9 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
 
   d <- do.call(rbind, arT)
   d$Scenario <- as.numeric(d$Scenario)
-  p1 <- ggplot(d,aes(x = Scenario, y = nbTrips)) + stat_summary(fun = mean, geom = "line")
+  p1 <- ggplot2::ggplot(d,aes(x = Scenario, y = nbTrips)) + stat_summary(fun = mean, geom = "line")
 
-  gdf <- ggplot_build(p1)$data[[1]]
+  gdf <- ggplot2::ggplot_build(p1)$data[[1]]
   df <- gdf[, c(1, 3)]
   colnames(df) <- c("Scenario", "Mean")
 
@@ -354,19 +365,19 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
   Ci[nrow(df)] <- NA
   df$SORC <- Ci
 
-  df[,4] <- df$SORC < max(df$Mean)*0.05
+  df[,4] <- df$SORC < max(df$Mean)*sorc
   tresh <- df$Scenario[which(df$V4 == TRUE)[1]]
 
-  p2 <- ggplot(d,aes(x = Scenario, y = nbTrips)) +
-    stat_summary(fun.data = "mean_cl_boot") +
-    stat_summary(fun = mean, geom = "line") + theme_bw() +
-    theme(axis.title.x=element_blank(), axis.title.y=element_blank()) +
-    geom_vline(xintercept = tresh, alpha = 0.1, col = "blue", size = 5)
+  p2 <- ggplot2::ggplot(d,aes(x = Scenario, y = nbTrips)) +
+    ggplot2::stat_summary(fun.data = "mean_cl_boot") +
+    ggplot2::stat_summary(fun = mean, geom = "line") + ggplot2::theme_bw() +
+    ggplot2::theme(axis.title.x=element_blank(), axis.title.y=element_blank()) +
+    ggplot2::geom_vline(xintercept = tresh, alpha = 0.1, col = "blue", size = 5)
 
-  p3 <- ggplot(df, aes(x = Scenario, y = SORC)) +
-    geom_point() + geom_line() + theme_bw() + theme(legend.position = "none",
-                                                    axis.title.x=element_blank(), axis.title.y=element_blank()) +
-    geom_vline(xintercept = tresh, alpha = 0.1, col = "blue", size = 5)
+  p3 <- ggplot2::ggplot(df, ggplot2::aes(x = Scenario, y = SORC)) +
+    ggplot2::geom_point() + ggplot2::geom_line() + ggplot2::theme_bw() + ggplot2::theme(legend.position = "none",
+    axis.title.x=ggplot2::element_blank(), axis.title.y=ggplot2::element_blank()) +
+    ggplot2::geom_vline(xintercept = tresh, alpha = 0.1, col = "blue", size = 5)
 
   g <- suppressWarnings(grid.arrange(p2, p3, ncol=2,left = "Number of trips per individual", bottom = "Scenario (Minutes)"))
 

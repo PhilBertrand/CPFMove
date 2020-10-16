@@ -6,6 +6,7 @@
 #' @param pathF path leading to your tracks
 #' @param pathM path leading to your metadata file
 #' @param metname a character string corresponding to the metadata file's name
+#' @param nbn character. Vector of "names" matching your raw GPS files (i.e. which are linked by the pathF argument). See details for more details
 #' @param timezone time zone in which data are recorded
 #' @param gpst a character string corresponding to the metadata's column name containing the GPS type
 #' @param ddep a character string corresponding to the metadata's column name containing the date of departure
@@ -59,7 +60,8 @@
 #' metname <- c("meta.csv")
 #' timezone <- c("GMT")
 #'
-#' f <- filt(pathF, pathM, metname, timezone, speedTresh = 90, gpst = "GPSType",
+#' f <- filt(pathF, pathM, metname, nbn = c("year", "colony", "ring", "recapture"),
+#' timezone, speedTresh = 90, gpst = "GPSType",
 #' ddep = "deployment", drecap = "recapture", colony = "colony", year = "year",
 #' ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
 #' Clong = "Clongitude", Clat = "Clatitude", BuffColony = 0.5, MinTripDur = 30, Complete = T, FixInt = 2,
@@ -70,13 +72,15 @@
 #' - McConnell, B.J., Chambers, C. and Fedak, M.A. (1992) Foraging ecology of southern elephant seals in relation to the bathymetry and productivity of the Southern Ocean. Antarctic Science 4:393-398.
 #' @export
 
-filt <- function(pathF = ..., pathM = ..., metname = NULL, nbn = c("year", "colony", "ring", "recapture"), gpst = NULL, ddep = NULL, drecap = NULL,
+filt <- function(pathF = ..., pathM = ..., metname = NULL, nbn = c("NULL"), gpst = NULL, ddep = NULL, drecap = NULL,
                  colony = NULL, year = NULL, ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL,
-                 Clongitude = NULL, Clatitude = NULL, speedTresh = NULL, FIX = NULL, FixInt = NULL, BuffColony = NULL, MinTripDur = NULL,
+                 Clong = NULL, Clat = NULL, speedTresh = NULL, FIX = NULL, FixInt = NULL, BuffColony = NULL, MinTripDur = NULL,
                  Complete = FALSE, Interpolate = FALSE, filtNA = 1, metINFO = c(NULL), splt = TRUE) {
 
   if (class(metname) != "character")
     stop("metname should be a character")
+  if (class(nbn) != "character")
+    stop("nbn should be a (vector of) character")
   if (class(gpst) != "character")
     stop("gpst should be a character")
   if (class(ddep) != "character")
@@ -97,6 +101,10 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, nbn = c("year", "colo
     stop("the timezone should be a character")
   if (class(FIX) != "character")
     stop("the FIX should be a character")
+  if (class(Clong) != "character")
+    stop("the Clong should be a character")
+  if (class(Clat) != "character")
+    stop("the Clat should be a character")
   if (!is.null(speedTresh) & class(speedTresh) != "numeric")
     stop("the speed treshold should be numeric")
   if (!is.null(FixInt) & class(FixInt) != "numeric")
@@ -384,6 +392,8 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, nbn = c("year", "colo
       }
 
   if(splt == TRUE) { allbirds <- split(allbirds, allbirds$birdTrip)}
+
+  class(allbirds) <- "CPFMove"
 
   return(allbirds)
 

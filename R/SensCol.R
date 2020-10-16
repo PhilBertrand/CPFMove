@@ -6,6 +6,7 @@
 #' @param pathF path leading to your tracks
 #' @param pathM path leading to your metadata file
 #' @param metname a character string corresponding to the metadata file's name
+#' @param nbn character. Vector of "names" matching your raw GPS files (i.e. which are linked by the pathF argument). See details for more details
 #' @param timezone time zone in which data are recorded
 #' @param iter the number of bootstrapping iterations (default = 50)
 #' @param param vector of radius sizes to be tested. These correspond to the different scenarios to be tested. Radii are here in km format
@@ -22,6 +23,7 @@
 #' locations in the GPS track
 #' @param Interpolate logical; if TRUE, tracks are interpolated
 #' @param FixInt numeric interval that should separate two locations in GPS tracks for interpolation (minutes; e.g. 2, 10)
+#' @param sorc numeric, proportion (0:1) treshold used for the second-order-rate of change
 #' @details Raw GPS data (located via *pathF*) should be as .csv format. This version only include 4 types of GPS format 1) Catlog, 2)
 #' IGotU, 3) PathTracks and 4) Ecotone. If your file doesn't have any specific format, the *gpst* could be specified as IGotU (one line header,
 #' and the raw data in the second lines. However, one should make sure that the *Latitude*, *Longitude*, *Date* and *Time* are specified.
@@ -40,23 +42,26 @@
 #' timezone <- c("GMT")
 #' param <- seq(0, 1, by = 0.1)
 #'
-#' sc <- sensCol(pathF, pathM, metname, timezone, iter = 300, param = param, speedTresh = 90,
+#' sc <- sensCol(pathF, pathM, metname, nbn = c("year", "colony", "ring", "recapture"),
+#'          timezone, iter = 300, param = param, speedTresh = 90,
 #'          gpst = "GPSType", ddep = "deployment", drecap = "recapture", colony = "colony",
 #'          year = "year", ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
-#'          Clong = "Clongitude", Clat = "Clatitude", FixInt = 2, Interpolate = T)
+#'          Clong = "Clongitude", Clat = "Clatitude", FixInt = 2, Interpolate = T, sorc=0.01)
 #'          }
 #' @references
 #' - Freitas, C., Lydersen, C., Ims, R.A., Fedak, M.A. and Kovacs, K.M. (2008) A simple new algorithm to filter marine mammal Argos locations Marine Mammal Science 24:315-325.
 #' - McConnell, B.J., Chambers, C. and Fedak, M.A. (1992) Foraging ecology of southern elephant seals in relation to the bathymetry and productivity of the Southern Ocean. Antarctic Science 4:393-398.
 #' @export
 #'
-sensCol <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param = NULL,
-                 gpst = NULL, FIX = NULL, ddep = NULL, drecap = NULL, colony = NULL, year = NULL,
-                 ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL, Clongitude = NULL, Clatitude = NULL,
-                 speedTresh = NULL, FixInt = NULL, Interpolate = FALSE) {
+sensCol <- function(pathF = ..., pathM = ..., nbn = c("NULL"), iter = 50,
+                 metname = NULL, param = NULL, gpst = NULL, FIX = NULL, ddep = NULL, drecap = NULL,
+                 colony = NULL, year = NULL, ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL,
+                 Clong = NULL, Clat = NULL, speedTresh = NULL, FixInt = NULL, Interpolate = FALSE, sorc=0.05) {
 
   if (class(metname) != "character")
     stop("metname should be a character")
+  if (class(nbn) != "character")
+    stop("nbn should be a (vector of) character")
   if (!is.vector(param))
     stop("param should be a vector")
   if (class(gpst) != "character")
@@ -79,12 +84,18 @@ sensCol <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param =
     stop("the timezone should be a character")
   if (class(FIX) != "character")
     stop("the FIX should be a character")
+  if (class(Clong) != "character")
+    stop("the Clong should be a character")
+  if (class(Clat) != "character")
+    stop("the Clat should be a character")
   if (!is.null(speedTresh) & class(speedTresh) != "numeric")
     stop("the speed treshold should be numeric")
   if (!is.null(FixInt) & class(FixInt) != "numeric")
     stop("the time interval between successive fixes should be numeric")
   if (!is.null(FixInt) & class(FixInt) != "numeric")
     stop("the time interval between successive fixes should be numeric")
+  if (class(sorc) != "numeric" | c(sorc < 0 | sorc > 1))
+    stop("sorc treshold needs a proportion as treshold; 0-1")
 
   ## Importing file's names
   Filext <- ".csv"
@@ -313,7 +324,7 @@ val <- NULL
   Ci[nrow(df)] <- NA
   df$SORC <- Ci
 
-  df[,4] <- df$SORC < max(df$Mean)*0.05
+  df[,4] <- df$SORC < max(df$Mean)*sorc
   tresh <- df$Scenario[which(df$V4 == TRUE)[1]]
 
 p2 <- ggplot2::ggplot(d,ggplot2::aes(x = Scenario, y = nbTrips)) +

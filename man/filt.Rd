@@ -8,6 +8,7 @@ filt(
   pathF = ...,
   pathM = ...,
   metname = NULL,
+  nbn = c("NULL"),
   gpst = NULL,
   ddep = NULL,
   drecap = NULL,
@@ -17,6 +18,8 @@ filt(
   tdep = NULL,
   trecap = NULL,
   timezone = NULL,
+  Clong = NULL,
+  Clat = NULL,
   speedTresh = NULL,
   FIX = NULL,
   FixInt = NULL,
@@ -36,6 +39,8 @@ filt(
 
 \item{metname}{a character string corresponding to the metadata file's name}
 
+\item{nbn}{character. Vector of "names" matching your raw GPS files (i.e. which are linked by the pathF argument). See details for more details}
+
 \item{gpst}{a character string corresponding to the metadata's column name containing the GPS type}
 
 \item{ddep}{a character string corresponding to the metadata's column name containing the date of departure}
@@ -54,7 +59,7 @@ filt(
 
 \item{timezone}{time zone in which data are recorded}
 
-\item{speedTresh}{numeric treshold used as speed cutoff for speed filtering (m/s)}
+\item{speedTresh}{numeric treshold used as speed cutoff for speed filtering (km/h)}
 
 \item{FIX}{a character string corresponding to the metadata's column name containing the numeric interval separating two
 locations in the GPS track}
@@ -89,6 +94,7 @@ Metrics for each trip are also computed, as;
 \item birdTrip: unique bird trip identifyer
 \item TripLength: Total time length of the trip (min)
 \item TripDist: Cumulative distance flew by the bird for the specific trip
+\item Speed: Speed between t-1 and t in m/s
 \item nPoints: number of points composing the trip
 \item maxDist: maximum distance that the bird went in its trip, relative to the colony
 \item propNA: proportion of NAs in the trip. Convenient for filtering for reliability of the statistics
@@ -108,17 +114,25 @@ and the raw data in the second lines. However, one should make sure that the \em
 Distance between points are calculated via the Great Circle distance, computed via \emph{sp} package
 }
 \examples{
-pathF <- c("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/files/lomvi/")
-pathM <- c("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/metadata/")
-metname <- c("meta_bjorn.csv")
+\dontrun{
+pathF <- c("C:/Users/User/files/allspecies/")
+pathM <- c("C:/Users/User/files/metadata/")
+metname <- c("meta.csv")
 timezone <- c("GMT")
 
-f <- filt(pathF, pathM, metname, timezone, speedTresh = 22.222, gpst = "GPSType",
+f <- filt(pathF, pathM, metname, nbn = c("year", "colony", "ring", "recapture"),
+timezone, speedTresh = 90, gpst = "GPSType",
 ddep = "deployment", drecap = "recapture", colony = "colony", year = "year",
 ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
-BuffColony = 0.5, MinTripDur = 60, Complete = T, FixInt = 2,
-Interpolate = T, filtNA = 1, metINFO = c("ring", "year", "colony"), splt = F)
-
+Clong = "Clongitude", Clat = "Clatitude", BuffColony = 0.5, MinTripDur = 30, Complete = T, FixInt = 2,
+Interpolate = T, filtNA = 0.9, metINFO = c("ring", "year", "species", "colony"), splt = F)
+}
+}
+\references{
+\itemize{
+\item Freitas, C., Lydersen, C., Ims, R.A., Fedak, M.A. and Kovacs, K.M. (2008) A simple new algorithm to filter marine mammal Argos locations Marine Mammal Science 24:315-325.
+\item McConnell, B.J., Chambers, C. and Fedak, M.A. (1992) Foraging ecology of southern elephant seals in relation to the bathymetry and productivity of the Southern Ocean. Antarctic Science 4:393-398.
+}
 }
 \keyword{central-place}
 \keyword{colony}
