@@ -66,11 +66,11 @@
 #' Interpolate = T, filtNA = 0.9, metINFO = c("ring", "year", "species", "colony"), splt = F)
 #' }
 #' @references
-#' Freitas, C., Lydersen, C., Ims, R.A., Fedak, M.A. and Kovacs, K.M. (2008) A simple new algorithm to filter marine mammal Argos locations Marine Mammal Science 24:315-325.
-#' McConnell, B.J., Chambers, C. and Fedak, M.A. (1992) Foraging ecology of southern elephant seals in relation to the bathymetry and productivity of the Southern Ocean. Antarctic Science 4:393-398.
+#' - Freitas, C., Lydersen, C., Ims, R.A., Fedak, M.A. and Kovacs, K.M. (2008) A simple new algorithm to filter marine mammal Argos locations Marine Mammal Science 24:315-325.
+#' - McConnell, B.J., Chambers, C. and Fedak, M.A. (1992) Foraging ecology of southern elephant seals in relation to the bathymetry and productivity of the Southern Ocean. Antarctic Science 4:393-398.
 #' @export
 
-filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = NULL, drecap = NULL,
+filt <- function(pathF = ..., pathM = ..., metname = NULL, nbn = c("year", "colony", "ring", "recapture"), gpst = NULL, ddep = NULL, drecap = NULL,
                  colony = NULL, year = NULL, ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL,
                  Clongitude = NULL, Clatitude = NULL, speedTresh = NULL, FIX = NULL, FixInt = NULL, BuffColony = NULL, MinTripDur = NULL,
                  Complete = FALSE, Interpolate = FALSE, filtNA = 1, metINFO = c(NULL), splt = TRUE) {
@@ -129,7 +129,13 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = N
                      as.character(metafile[[trecap]])),"%Y-%m-%d %H:%M", tz=timezone), timezone)
 
   ## create a track ID synonymous with how the files are named:
-  metafile$ID <- paste(metafile[[year]], "_", metafile[[colony]], "_", metafile[[ring]], "_", format(metafile$end,"%Y-%m-%d"),sep="")
+  dfn <- list()
+  for (m in 1:length(unique(nbn))){
+    tmpname <- nbn[m]
+    dfn[[m]] <- paste(metafile[[tmpname]])
+  }
+
+  metafile$ID <- do.call(paste, c(as.data.frame(do.call(cbind, dfn))[, c(1:ncol(as.data.frame(do.call(cbind, dfn))))], sep="_"))
 
   Date.diff <-  metafile$end - metafile$start; if( length(metafile$ID[which(Date.diff <= 0)]) != 0 )
       stop('Date of retrieval should be later than date of deployment')

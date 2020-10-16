@@ -45,6 +45,9 @@
 #'          year = "year", ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
 #'          Clong = "Clongitude", Clat = "Clatitude", FixInt = 2, Interpolate = T)
 #'          }
+#' @references
+#' - Freitas, C., Lydersen, C., Ims, R.A., Fedak, M.A. and Kovacs, K.M. (2008) A simple new algorithm to filter marine mammal Argos locations Marine Mammal Science 24:315-325.
+#' - McConnell, B.J., Chambers, C. and Fedak, M.A. (1992) Foraging ecology of southern elephant seals in relation to the bathymetry and productivity of the Southern Ocean. Antarctic Science 4:393-398.
 #' @export
 #'
 sensCol <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param = NULL,
@@ -98,7 +101,13 @@ sensCol <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param =
                                                as.character(metafile[[trecap]])),"%Y-%m-%d %H:%M", tz=timezone), timezone)
 
   ## create a track ID synonymous with how the files are named:
-  metafile$ID <- paste(metafile[[year]], "_", metafile[[colony]], "_", metafile[[ring]], "_", format(metafile$end,"%Y-%m-%d"),sep="")
+  dfn <- list()
+  for (m in 1:length(unique(nbn))){
+    tmpname <- nbn[m]
+    dfn[[m]] <- paste(metafile[[tmpname]])
+  }
+
+  metafile$ID <- do.call(paste, c(as.data.frame(do.call(cbind, dfn))[, c(1:ncol(as.data.frame(do.call(cbind, dfn))))], sep="_"))
 
   Date.diff <-  metafile$end - metafile$start; if( length(metafile$ID[which(Date.diff <= 0)]) != 0 )
     stop('Date of retrieval should be later than date of deployment')
