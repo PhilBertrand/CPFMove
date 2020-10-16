@@ -44,14 +44,14 @@
 #' st <- sensTime(pathF, pathM, metname, timezone, iter = 300, param = param, speedTresh = 25,
 #'        gpst = "GPSType", ddep = "deployment", drecap = "recapture", colony = "colony",
 #'        year = "year", ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
-#'        BuffColony = 0.15, FixInt = 2, Interpolate = T)
+#'        Clong = "Clongitude", Clat = "Clatitude", BuffColony = 0.15, FixInt = 2, Interpolate = T)
 #' }
 #' @export
 
 sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param = NULL,
                     gpst = NULL, FIX = NULL, ddep = NULL, drecap = NULL, colony = NULL, year = NULL,
-                    ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL, speedTresh = NULL,
-                    BuffColony = NULL, FixInt = NULL, Interpolate = FALSE) {
+                    ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL, Clongitude = NULL, Clatitude = NULL,
+                    speedTresh = NULL, BuffColony = NULL, FixInt = NULL, Interpolate = FALSE) {
 
   if (class(metname) != "character")
     stop("metname should be a character")
@@ -160,8 +160,8 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
 
       ## Extract colony corrdinates and building of a data.frame
       ## Will be used later in the script for colony-location distance
-      CLong <- metafile$Clongitude[which(metafile$ID == gsub(".csv", "", file.name[r]))]
-      CLat <- metafile$Clatitude[which(metafile$ID == gsub(".csv", "", file.name[r]))]
+      CLong <- metafile[[Clong]][which(metafile$ID == gsub(".csv", "", file.name[i]))]
+      CLat <- metafile[[Clat]][which(metafile$ID == gsub(".csv", "", file.name[i]))]
       CLL <- cbind(CLong, CLat)
 
       ## make sure date in the right format - two different conversion methods cos multiple date formats

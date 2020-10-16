@@ -62,7 +62,7 @@
 #' f <- filt(pathF, pathM, metname, timezone, speedTresh = 90, gpst = "GPSType",
 #' ddep = "deployment", drecap = "recapture", colony = "colony", year = "year",
 #' ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
-#' BuffColony = 0.5, MinTripDur = 30, Complete = T, FixInt = 2,
+#' Clong = "Clongitude", Clat = "Clatitude", BuffColony = 0.5, MinTripDur = 30, Complete = T, FixInt = 2,
 #' Interpolate = T, filtNA = 0.9, metINFO = c("ring", "year", "species", "colony"), splt = F)
 #' }
 #' @references
@@ -72,7 +72,7 @@
 
 filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = NULL, drecap = NULL,
                  colony = NULL, year = NULL, ring = NULL, tdep = NULL, trecap = NULL, timezone = NULL,
-                 speedTresh = NULL, FIX = NULL, FixInt = NULL, BuffColony = NULL, MinTripDur = NULL,
+                 Clongitude = NULL, Clatitude = NULL, speedTresh = NULL, FIX = NULL, FixInt = NULL, BuffColony = NULL, MinTripDur = NULL,
                  Complete = FALSE, Interpolate = FALSE, filtNA = 1, metINFO = c(NULL), splt = TRUE) {
 
   if (class(metname) != "character")
@@ -173,8 +173,8 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = N
 
   ## Extract colony corrdinates and building of a data.frame
   ## Will be used later in the script for colony-location distance
-  CLong <- metafile$Clongitude[which(metafile$ID == gsub(".csv", "", file.name[i]))]
-  CLat <- metafile$Clatitude[which(metafile$ID == gsub(".csv", "", file.name[i]))]
+  CLong <- metafile[[Clong]][which(metafile$ID == gsub(".csv", "", file.name[i]))]
+  CLat <- metafile[[Clat]][which(metafile$ID == gsub(".csv", "", file.name[i]))]
   CLL <- cbind(CLong, CLat)
 
   ## make sure date in the right format - ymd; creating the time object, then ordering since
