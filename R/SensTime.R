@@ -20,6 +20,7 @@
 #' @param speedTresh numeric treshold used as speed cutoff for speed filtering (km/h)
 #' @param FIX a character string corresponding to the metadata's column name containing the numeric interval separating two
 #' locations in the GPS track
+#' @param Interpolate logical; if TRUE, tracks are interpolated
 #' @param BuffColony numeric value indicating the buffer radius length around the colony (km)
 #' @param FixInt numeric interval that should separate two locations in GPS tracks for interpolation (minutes; e.g. 2, 10)
 #' @details Raw GPS data (located via *pathF*) should be as .csv format. This version only include 4 types of GPS format 1) Catlog, 2)
@@ -33,8 +34,8 @@
 #' This is seen as a measure of "stability " of the response *t* among scenario *t-1* and *t+1*.
 #' @keywords trips movement central-place-forager cpf delineating colony movement-ecology
 #' @examples
-#'
-#' pathF <- c("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/files/kit/")
+#'\dontrun{
+#' pathF <- c("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/files/lomvi/")
 #' pathM <- c("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/metadata/")
 #' metname <- c("meta_bjorn.csv")
 #' timezone <- c("GMT")
@@ -44,6 +45,8 @@
 #'        gpst = "GPSType", ddep = "deployment", drecap = "recapture", colony = "colony",
 #'        year = "year", ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
 #'        BuffColony = 0.15, FixInt = 2, Interpolate = T)
+#' }
+#' @export
 
 sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param = NULL,
                     gpst = NULL, FIX = NULL, ddep = NULL, drecap = NULL, colony = NULL, year = NULL,
@@ -153,7 +156,7 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
       # extract start and end times for each file
       start <- metafile$start[which(metafile$ID == gsub(".csv", "", file.name[r]))]
       end <- metafile$end[which(metafile$ID == gsub(".csv", "", file.name[r]))]
-      int <- interval(start, end, tzone = "GMT") ## must make sure it's the right timezone!!
+      int <- lubridate::interval(start, end, tzone = "GMT") ## must make sure it's the right timezone!!
 
       ## Extract colony corrdinates and building of a data.frame
       ## Will be used later in the script for colony-location distance
@@ -163,11 +166,11 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
 
       ## make sure date in the right format - two different conversion methods cos multiple date formats
 
-      mdy <- mdy(bird$Date, quiet = TRUE)
-      ymd <- ymd(bird$Date, quiet = TRUE)
+      mdy <- lubridate::mdy(bird$Date, quiet = TRUE)
+      ymd <- lubridate::ymd(bird$Date, quiet = TRUE)
       mdy[is.na(mdy)] <- ymd[!is.na(ymd)] # give the working one precedence
       bird$Date <- format(mdy, "%Y/%m/%d")
-      bird$Time <- chron(times=bird$Time)
+      bird$Time <- chron::chron(times=bird$Time)
       bird$datetime <- strptime(paste(gsub("/", "-", bird$Date), bird$Time), format = "%Y-%m-%d %H:%M:%S", tz = "GMT")
       bird <- bird[order(bird$datetime , decreasing = FALSE ),] ## assuring the chronological order of fixes
 
@@ -191,8 +194,8 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
       # }
 
       ## Extracting GPS interval, determined from the metadata
-      Sres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[i]))])*60
-      Mres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[i]))])
+      Sres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[r]))])*60
+      Mres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[r]))])
 
       if(Interpolate == TRUE) {
 
@@ -203,9 +206,9 @@ sensTime <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param 
         Nbird <- subset(Nbird, Nbird$sf == TRUE)
         Nbird <- adehabitatLT::as.ltraj(xy = data.frame(Nbird$x, Nbird$y), date = as.POSIXct(Nbird$date), id = Nbird$id)
 
-        wost_NA <- setNA(Nbird,refda,Mres,units="min")
-        wost_demo <- sett0(wost_NA,refda,Mres,units="min")
-        Nbird <- redisltraj(na.omit(wost_demo), u = Sres, type = "time")
+        wost_NA <- adehabitatLT::setNA(Nbird,refda,Mres,units="min")
+        wost_demo <- adehabitatLT::sett0(wost_NA,refda,Mres,units="min")
+        Nbird <- adehabitatLT::redisltraj(na.omit(wost_demo), u = Sres, type = "time")
         Nbird[[1]]$nbNA <- ifelse(Nbird[[1]]$x %in% wost_demo[[1]]$x, 0, 1)
 
         tmpN <- ld(Nbird)

@@ -53,20 +53,21 @@
 #'
 #' @keywords trips movement central-place forager cpf delineating colony
 #' @examples
-#' pathF <- c("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/files/lomvi/")
-#' pathM <- c("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/metadata/")
-#' metname <- c("meta_bjorn.csv")
+#' \dontrun{
+#' pathF <- c("C:/Users/User/files/allspecies/")
+#' pathM <- c("C:/Users/User/files/metadata/")
+#' metname <- c("meta.csv")
 #' timezone <- c("GMT")
 #'
-#' f <- filt(pathF, pathM, metname, timezone, speedTresh = 22.222, gpst = "GPSType",
+#' f <- filt(pathF, pathM, metname, timezone, speedTresh = 90, gpst = "GPSType",
 #' ddep = "deployment", drecap = "recapture", colony = "colony", year = "year",
 #' ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
-#' BuffColony = 0.5, MinTripDur = 60, Complete = T, FixInt = 2,
-#' Interpolate = T, filtNA = 1, metINFO = c("ring", "year", "colony"), splt = F)
+#' BuffColony = 0.5, MinTripDur = 30, Complete = T, FixInt = 2,
+#' Interpolate = T, filtNA = 0.9, metINFO = c("ring", "year", "species", "colony"), splt = F)
+#' }
 #' @references
 #' Freitas, C., Lydersen, C., Ims, R.A., Fedak, M.A. and Kovacs, K.M. (2008) A simple new algorithm to filter marine mammal Argos locations Marine Mammal Science 24:315-325.
 #' McConnell, B.J., Chambers, C. and Fedak, M.A. (1992) Foraging ecology of southern elephant seals in relation to the bathymetry and productivity of the Southern Ocean. Antarctic Science 4:393-398.
-
 #' @export
 
 filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = NULL, drecap = NULL,
@@ -213,7 +214,7 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = N
 
     refda <- min(bird$datetime)
     Nbird <- adehabitatLT::as.ltraj(xy = data.frame(bird$Longitude, bird$Latitude), date = as.POSIXct(bird$datetime), id = bird$trackID)
-    Nbird[[1]]$sf <- trip::sda(x=trip::as.trip(Nbird), smax= speedTresh)
+    Nbird[[1]]$sf <- suppressWarnings(trip::sda(x=trip::as.trip(Nbird), smax= speedTresh))
     Nbird <- adehabitatLT::ld(Nbird)
     Nbird <- subset(Nbird, Nbird$sf == TRUE)
     Nbird <- adehabitatLT::as.ltraj(xy = data.frame(Nbird$x, Nbird$y), date = as.POSIXct(Nbird$date), id = Nbird$id)
@@ -308,7 +309,7 @@ filt <- function(pathF = ..., pathM = ..., metname = NULL, gpst = NULL, ddep = N
 
     trip.matrix <- data.matrix(test[,c("Longitude","Latitude")], rownames.force = NA) #creates two column matrix of lat and long for trip trackDistance function
     distbp <- trip::trackDistance(trip.matrix, longlat = TRUE) #calculates distance between each GPS point, into vector
-    TDist <- sum(distbp) ## Total distance travelled per trip (km)
+    TDist <- sum(distbp) ## Total distance travelled per trip (m)
     test$TripDist <- TDist
 
     tripDurs <- as.data.frame(table(test$birdTrip))

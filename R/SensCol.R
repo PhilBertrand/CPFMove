@@ -20,6 +20,7 @@
 #' @param speedTresh numeric treshold used as speed cutoff for speed filtering (km/h)
 #' @param FIX a character string corresponding to the metadata's column name containing the numeric interval separating two
 #' locations in the GPS track
+#' @param Interpolate logical; if TRUE, tracks are interpolated
 #' @param FixInt numeric interval that should separate two locations in GPS tracks for interpolation (minutes; e.g. 2, 10)
 #' @details Raw GPS data (located via *pathF*) should be as .csv format. This version only include 4 types of GPS format 1) Catlog, 2)
 #' IGotU, 3) PathTracks and 4) Ecotone. If your file doesn't have any specific format, the *gpst* could be specified as IGotU (one line header,
@@ -32,17 +33,18 @@
 #' This is seen as a measure of "stability " of the response *t* among scenario *t-1* and *t+1*.
 #' @keywords trips movement central-place-forager cpf delineating colony movement-ecology
 #' @examples
-#'
+#' \dontrun{
 #' pathF <- c("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/files/plomvi/")
 #' pathM <- c("C:/Users/philip/OneDrive/NP_Kontrakt/StromTracks/metadata/")
 #' metname <- c("meta_bjorn.csv")
 #' timezone <- c("GMT")
-#' param <- seq(0.05, 1, by = 0.05)
+#' param <- seq(0, 1, by = 0.1)
 #'
 #' sc <- sensCol(pathF, pathM, metname, timezone, iter = 300, param = param, speedTresh = 90,
 #'          gpst = "GPSType", ddep = "deployment", drecap = "recapture", colony = "colony",
 #'          year = "year", ring = "ring", FIX = "FIX", tdep = "utc_deployment", trecap = "utc_retrieval",
 #'          FixInt = 2, Interpolate = T)
+#'          }
 #' @export
 #'
 sensCol <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param = NULL,
@@ -80,15 +82,6 @@ sensCol <- function(pathF = ..., pathM = ..., iter = 50, metname = NULL, param =
     stop("the time interval between successive fixes should be numeric")
   if (!is.null(FixInt) & class(FixInt) != "numeric")
     stop("the time interval between successive fixes should be numeric")
-
-  pack <- c("chron", "adehabitatHR", "plyr", "trip", "lubridate", "gridExtra", "reshape2",
-            "ggplot2", "Hmisc")
-
-  if (length(setdiff(pack, rownames(installed.packages()))) > 0) {
-    install.packages(setdiff(pack, rownames(installed.packages())))
-  }
-
-  sapply(pack, function(p) {require(p, quietly=T, character.only = T)})
 
   ## Importing file's names
   Filext <- ".csv"
@@ -188,8 +181,8 @@ for (i in 1:length(param)) {
    # }
 
    ## Extracting GPS interval, determined from the metadata
-   Sres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[i]))])*60
-   Mres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[i]))])
+   Sres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[r]))])*60
+   Mres <- (metafile[, FIX][which(metafile$ID == gsub(".csv","",file.name[r]))])
 
    if(Interpolate == TRUE) {
 
@@ -287,7 +280,7 @@ rm(allbirds)
 
 d <- do.call(rbind, arS)
 d$Scenario <- as.numeric(d$Scenario)
-p1 <- ggplot2::ggplot(d,aes(x = Scenario, y = nbTrips)) + ggplot2::stat_summary(fun = mean, geom = "line")
+p1 <- ggplot2::ggplot(d, ggplot2::aes(x = Scenario, y = nbTrips)) + ggplot2::stat_summary(fun = mean, geom = "line")
 
 gdf <- ggplot2::ggplot_build(p1)$data[[1]]
 df <- gdf[, c(1, 3)]
@@ -314,18 +307,18 @@ val <- NULL
   df[,4] <- df$SORC < max(df$Mean)*0.05
   tresh <- df$Scenario[which(df$V4 == TRUE)[1]]
 
-p2 <- ggplot2::ggplot(d,aes(x = Scenario, y = nbTrips)) +
-    stat_summary(fun.data = "mean_cl_boot") +
-    stat_summary(fun = mean, geom = "line") + theme_bw() +
-    theme(axis.title.x=element_blank(), axis.title.y=element_blank()) +
-    geom_vline(xintercept = tresh, alpha = 0.1, col = "blue", size = 5)
+p2 <- ggplot2::ggplot(d,ggplot2::aes(x = Scenario, y = nbTrips)) +
+  ggplot2::stat_summary(fun.data = "mean_cl_boot") +
+  ggplot2::stat_summary(fun = mean, geom = "line") + ggplot2::theme_bw() +
+  ggplot2::theme(axis.title.x=ggplot2::element_blank(), axis.title.y=ggplot2::element_blank()) +
+  ggplot2::geom_vline(xintercept = tresh, alpha = 0.1, col = "blue", size = 5)
 
-p3 <- ggplot(df, aes(x = Scenario, y = SORC)) +
-  geom_point() + geom_line() + theme_bw() + theme(legend.position = "none",
-    axis.title.x=element_blank(), axis.title.y=element_blank()) +
-  geom_vline(xintercept = tresh, alpha = 0.1, col = "blue", size = 5)
+p3 <- ggplot2::ggplot(df, ggplot2::aes(x = Scenario, y = SORC)) +
+  ggplot2::geom_point() + ggplot2::geom_line() + ggplot2::theme_bw() + ggplot2::theme(legend.position = "none",
+    axis.title.x=ggplot2::element_blank(), axis.title.y=ggplot2::element_blank()) +
+  ggplot2::geom_vline(xintercept = tresh, alpha = 0.1, col = "blue", size = 5)
 
-g <- suppressWarnings(grid.arrange(p2, p3, ncol=2,left = "Number of trips per individual", bottom = "Scenario (m)"))
+g <- suppressWarnings(gridExtra::grid.arrange(p2, p3, ncol=2,left = "Number of trips per individual", bottom = "Scenario (m)"))
 
 rlist <- suppressWarnings(list("detSens" = d[, c(4:5, 11, 13)], "detSORC" = df[, c(1:3)], fig = g))
 
