@@ -168,8 +168,8 @@ for (i in 1:length(param)) {
 
    ## Extract colony corrdinates and building of a data.frame
    ## Will be used later in the script for colony-location distance
-   CLong <- metafile[[Clong]][which(metafile$ID == gsub(".csv", "", file.name[i]))]
-   CLat <- metafile[[Clat]][which(metafile$ID == gsub(".csv", "", file.name[i]))]
+   CLong <- metafile[[Clong]][which(metafile$ID == gsub(".csv", "", file.name[r]))]
+   CLat <- metafile[[Clat]][which(metafile$ID == gsub(".csv", "", file.name[r]))]
    CLL <- cbind(CLong, CLat)
 
    ## make sure date in the right format - two different conversion methods cos multiple date formats
