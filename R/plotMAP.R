@@ -22,18 +22,18 @@
 #' @examples
 #'\dontrun{
 #' path <- c("C:/Users/philip/Desktop/test")
-#' test <- plotMAP(f, pmap = F, path = path, ColLong = f$ColLong, ColLat = f$ColLat)
+#' test <- plotMAP(df, pmap = F, path = path, ColLong = f$ColLong, ColLat = f$ColLat)
 #' }
 #' @export
 
 
 
-plotMAP <- function(allbirds, pmap = FALSE, path = NULL, w = 12, h = 12,
+plotMAP <- function(df, pmap = FALSE, path = NULL, w = 12, h = 12,
                 units = "cm", ColLong = NULL, ColLat = NULL) {
 
   if (is.null(path))
     stop("path? You need to indicate where to save the figures")
-  if (!is(allbirds, "CPFMove"))
+  if (!is(df, "CPFMove"))
     stop("You need to pass an object of class CPFMove for that function")
 
   pack <- c("ggOceanMaps", "ggplot2", "ggspatial")
@@ -44,13 +44,13 @@ plotMAP <- function(allbirds, pmap = FALSE, path = NULL, w = 12, h = 12,
 
   sapply(pack, function(p) {require(p, quietly=T, character.only = T)})
 
-  if(class(allbirds) == "list") {allbirds <- do.call(rbind, allbirds)}
+  if(class(df) == "list") {df <- do.call(rbind, df)}
 
-  for(i in 1:length(unique(allbirds$birdTrip))){
+  for(i in 1:length(unique(df$birdTrip))){
 
-    bt <- unique(allbirds$birdTrip)[i]
+    bt <- unique(df$birdTrip)[i]
 
-    bird <- subset(allbirds, allbirds$birdTrip == bt)
+    bird <- subset(df, df$birdTrip == bt)
 
    if (is.null(ColLong) | is.null(ColLat)) {
     warning("You have no coordinate associated to your colony. Location will be automatically picked up from your dataset")
