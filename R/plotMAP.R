@@ -22,7 +22,7 @@
 #' @examples
 #'\dontrun{
 #' path <- c("C:/Users/philip/Desktop/test")
-#' test <- plotMAP(df, pmap = F, path = path, ColLong = f$ColLong, ColLat = f$ColLat)
+#' test <- plotMAP(df, pmap = F, path = path, ColLong = df$ColLong, ColLat = df$ColLat)
 #' }
 #' @export
 
